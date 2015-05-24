@@ -15,10 +15,12 @@ namespace LabPhotoCollection
 {
     public partial class Form1 : Form
     {
-        private readonly string[] fileExtensions = new[] { "jpg" };
+        private readonly string[] fileExtensions = new[] { "jpg", "gif" };
         private string filePath;
         private List<string> fullFileNames;
         private Dictionary<string, string> dicExifDatas;
+        private string fileListText = "File List (Count：{0})";
+        private string fileErrorListText = "Error File List (Count：{0})";
 
         public Form1()
         {
@@ -27,10 +29,17 @@ namespace LabPhotoCollection
 
         private void btnSelectPath_Click(object sender, EventArgs e)
         {
-            folderBrowserDialog1.ShowDialog();
-            filePath = folderBrowserDialog1.SelectedPath;
+            if (string.IsNullOrWhiteSpace(textBox1.Text))
+            {
+                folderBrowserDialog1.ShowDialog();
+                this.filePath = folderBrowserDialog1.SelectedPath;
+            }
+            else
+            {
+                this.filePath = textBox1.Text;
+            }
 
-            if (string.IsNullOrWhiteSpace(filePath))
+            if (string.IsNullOrWhiteSpace(this.filePath))
             {
                 MessageBox.Show("請選擇資料夾");
                 return;
@@ -53,14 +62,20 @@ namespace LabPhotoCollection
                 boxPhoto.Items.Add(fileName);
             }
 
+            lblFileList.Text = string.Format(this.fileListText, boxPhoto.Items.Count);
+
             List<string> errorFileNames;
             dicExifDatas = this.GetExifDateTime(fullFileNames, out errorFileNames);
 
             boxErrorFile.Items.Clear();
+            lblErrorFileList.Text = string.Format(this.fileErrorListText, string.Empty);
+
             foreach (var errorFileName in errorFileNames)
             {
                 boxErrorFile.Items.Add(errorFileName);
             }
+
+            lblErrorFileList.Text = string.Format(this.fileErrorListText, boxErrorFile.Items.Count);
         }
 
         private void boxPhoto_SelectedIndexChanged(object sender, EventArgs e)
@@ -99,10 +114,20 @@ namespace LabPhotoCollection
                     var fileInfo = new FileInfo(dicExifData.Key);
                     if (fileInfo.Exists)
                     {
-                        var newFileInfo = new FileInfo(newPath + "\\" + fileInfo.Name);
-                        if (!newFileInfo.Exists)
+                        if (!this.CheckFileIsExists(newPath + "\\" + fileInfo.Name))
                         {
                             fileInfo.MoveTo(newPath + "\\" + fileInfo.Name);
+                        }
+                        else
+                        {
+                            ////存在時就 rename 一次
+                            var extensionIndex = fileInfo.Name.LastIndexOf(".", StringComparison.Ordinal);
+                            var newFileName = fileInfo.Name.Substring(0, extensionIndex) + "_1" + fileInfo.Extension;
+
+                            if (!this.CheckFileIsExists(newPath + "\\" + newFileName))
+                            {
+                                fileInfo.MoveTo(newPath + "\\" + newFileName);
+                            }
                         }
                     }
                 }
@@ -112,7 +137,26 @@ namespace LabPhotoCollection
                 
             }
 
+            this.Reset();
+
             MessageBox.Show("Done..");
+        }
+
+        private void Reset()
+        {
+            this.filePath = string.Empty;
+            this.fullFileNames = new List<string>();
+            this.dicExifDatas = new Dictionary<string, string>();
+
+            this.boxPhoto.Items.Clear();
+
+            lblFileList.Text = string.Format(this.fileListText, string.Empty);
+        }
+
+        private bool CheckFileIsExists(string path)
+        {
+            var fileInfo = new FileInfo(path);
+            return fileInfo.Exists;
         }
 
         private Dictionary<string, string> GetExifDateTime(List<string> fullFileNames, out List<string> errorFileNames)
