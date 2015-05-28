@@ -44,6 +44,11 @@ namespace LabPhotoCollection
                 MessageBox.Show("請選擇資料夾");
                 return;
             }
+            else if(!Directory.Exists(this.filePath))
+            {
+                MessageBox.Show("資料夾錯誤");
+                return;
+            }
 
             this.GetFullFileName();
 
